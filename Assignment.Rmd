@@ -32,22 +32,23 @@ trainingData = read.csv("pml-training.csv", na.strings=c("", "NA", "NULL"))
 dim(trainingData)
 ```
 
-####Pre-screening Data
+**Pre-screening Data**
 There are several approaches for reducing the number of predictors.
 
--Remove variables that we believe have too many NA values.
+1. Remove variables that we believe have too many NA values.
 ```{r}
 training.dena <- trainingData[ , colSums(is.na(trainingData)) == 0]
 dim(training.dena)
 ```
--Remove unrelevant variables There are some unrelevant variables that can be removed as they are unlikely to be related to dependent variable.
+
+2. Remove unrelevant variables There are some unrelevant variables that can be removed as they are unlikely to be related to dependent variable.
 
 ```{r}
 remove = c('X', 'user_name', 'raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window')
 training.dere <- training.dena[, -which(names(training.dena) %in% remove)]
 dim(training.dere)
 ```
--Check the variables that have extremely low variance (this method is useful nearZeroVar() )
+3. Check the variables that have extremely low variance (this method is useful nearZeroVar() )
 
 ```{r}
 #install caret using: install.packages('caret', repos='http://cran.rstudio.com/')
@@ -59,7 +60,7 @@ zeroVar= nearZeroVar(training.dere[sapply(training.dere, is.numeric)], saveMetri
 training.nonzerovar = training.dere[,zeroVar[, 'nzv']==0]
 dim(training.nonzerovar)
 ```
--Remove highly correlated variables 90% (using for example findCorrelation() )
+4. Remove highly correlated variables 90% (using for example findCorrelation() )
 ```{r, echo=TRUE}
 # only numeric variabls can be evaluated in this way.
 corrMatrix <- cor(na.omit(training.nonzerovar[sapply(training.nonzerovar, is.numeric)]))
@@ -69,16 +70,15 @@ corrDF <- expand.grid(row = 1:52, col = 1:52)
 corrDF$correlation <- as.vector(corrMatrix)
 levelplot(correlation ~ row+ col, corrDF)
 ```
-We are going to remove those variable which have high correlation.
+5. Lastly, remove those variable which have high correlation.
 
 ```{r, echo=TRUE}
 removecor = findCorrelation(corrMatrix, cutoff = .90, verbose = FALSE)
 training.decor = training.nonzerovar[,-removecor]
 dim(training.decor)
 ```
-We get 19622 samples and 46 variables.
+As a result, left 19622 samples and 46 variables. Next split data to training and testing for cross validation for analysis purpose.
 
-####Split data to training and testing for cross validation
 ```{r}
 inTrain <- createDataPartition(y=training.decor$classe, p=0.7, list=FALSE)
 training <- training.decor[inTrain,]; testing <- training.decor[-inTrain,]
@@ -87,9 +87,11 @@ dim(testing)
 ```
 ###Analysis
 ***
-###Regression Tree
+Different prediction models will be used for analysis purpose.
 
-Now we fit a tree to these data, and summarize and plot it. First, we use the 'tree' package. It is much faster than 'caret' package.
+**Regression Tree**
+
+Fit a tree to these data, and summarize and plot it. First, use the 'tree' package as it is much faster than 'caret' package.
 
 ```{r}
 suppressWarnings(suppressMessages(library(tree)))
@@ -99,9 +101,9 @@ summary(tree.training)
 plot(tree.training)
 text(tree.training,pretty=0, cex =.8)
 ```
-This is a bushy tree, and we are going to prune it.
+This is a bushy tree, next is to prune it.
 
-###Rpart Model
+**Rpart Model**
 ```{r}
 #To prevent e1071 package error, install.packages('e1071', dependencies=TRUE)
 modFit <- train(classe ~ .,method="rpart",data=training)
@@ -116,13 +118,12 @@ fancyRpartPlot(modFit$finalModel)
 The result from 'caret' 'rpart' package is close to 'tree' package. 
 
 ###Cross Validation
-We are going to check the performance of the tree on the testing data by cross validation.
+Perform cross validation to check the performance of the tree on the testing data.
 ```{r}
 tree.pred=predict(tree.training,testing,type="class")
 predMatrix = with(testing,table(tree.pred,classe))
 sum(diag(predMatrix))/sum(as.vector(predMatrix)) # error rate
 ```
-
 The 0.70 is not very accurate.
 ```{r}
 tree.pred=predict(modFit,testing)
@@ -133,13 +134,13 @@ The 0.50 from 'caret' package is much lower than the result from 'tree' package.
 
 ###Pruning tree
 
-This tree was grown to full depth, and might be too variable. We now use Cross Validation to prune it.
+This tree was grown to full depth, and might be too variable. Use Cross Validation to prune it.
 ```{r}
 cv.training=cv.tree(tree.training,FUN=prune.misclass)
 cv.training
 plot(cv.training)
 ```
-It shows that when the size of the tree goes down, the deviance goes up. It means the 21 is a good size (i.e. number of terminal nodes) for this tree. We do not need to prune it.
+It shows that when the size of the tree goes down, the deviance goes up. It means the 21 is a good size (i.e. number of terminal nodes) for this tree so do not need to prune it.
 
 Suppose we prune it at size of nodes at 18.
 ```{r}
@@ -152,11 +153,11 @@ tree.pred=predict(prune.training,testing,type="class")
 predMatrix = with(testing,table(tree.pred,classe))
 sum(diag(predMatrix))/sum(as.vector(predMatrix)) # error rate
 ```
-0.66 is a little less than 0.70, so pruning did not hurt us with repect to misclassification errors, and gave us a simpler tree. We use less predictors to get almost the same result. By pruning, we got a shallower tree, which is easier to interpret.
+0.66 is a little less than 0.70, so pruning did not affect much with repect to misclassification errors, and produce a simpler tree with less predictors to get almost the same result. By pruning, a shallower tree is generated and is easier to interpret.
 
-The single tree is not good enough, so we are going to use bootstrap to improve the accuracy. We are going to try random forests.
+The single tree is not good enough, so use bootstrap to improve the accuracy by using random forests.
 
-###Random Forests
+**Random Forests**
 Random forests build lots of bushy trees, and then average them to reduce the variance.
 ```{r}
 require(randomForest)
@@ -168,11 +169,11 @@ rf.training=randomForest(classe~.,data=training,ntree=100, importance=TRUE)
 rf.training
 varImpPlot(rf.training)
 ```
-we can see which variables have higher impact on the prediction.
+As a result able to see which variables have higher impact on the prediction.
 
 ###Out-of Sample Accuracy
 ***
-Our Random Forest model shows OOB estimate of error rate: 0.72% for the training data. Now we will predict it for out-of sample accuracy.
+Random Forest model shows OOB estimate of error rate: 0.72% for the training data. Now we will predict it for out-of sample accuracy.
 
 Now lets evaluate this tree on the test data.
 
@@ -183,12 +184,11 @@ sum(diag(predMatrix))/sum(as.vector(predMatrix)) # error rate
 ```
 0.99 means we got a very accurate estimate.
 
-No. of variables tried at each split: 6. It means every time we only randomly use 6 predictors to grow the tree. Since p = 43, we can have it from 1 to 43, but it seems 6 is enough to get the good result
+No. of variables tried at each split: 6. It means every time, only randomly use 6 predictors to grow the tree. Since p = 43, means can have it from 1 to 43, but it seems 6 is enough to get the good result.
 
 ###Conclusion
-Now we can predict the testing data from the website.
+Since random forest gives a good prediction, it will be used to prediction model for this assignment.
 ```{r}
 answers <- predict(rf.training, testingData)
 answers
 ```
-Those answers are going to submit to website for grading. It shows that this random forest model did a good job.
