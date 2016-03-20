@@ -1,0 +1,35 @@
+---
+title: "Prediction Model - Exercise Manner"
+author: "Brandon Hu"
+date: "March 20, 2016"
+output: html_document
+---
+
+###Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+This project goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+More information is available from the website here: <http://groupware.les.inf.puc-rio.br/har> (see the section on the Weight Lifting Exercise Dataset).
+
+###Data
+Download and load test and training data.
+
+```
+testingData = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", na.strings=c("", "NA", "NULL"))
+dim(testingData)
+
+trainingData = read.csv("pml-training.csv", na.strings=c("", "NA", "NULL"))
+dim(trainingData)
+```
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output 
+
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
